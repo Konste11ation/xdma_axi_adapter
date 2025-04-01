@@ -2,24 +2,29 @@
 // Yunhao Deng <yunhao.deng@kuleuven.be>
 
 module xdma_grant_manager #(
+    parameter type addr_t                                = logic,
     parameter type xdma_from_remote_data_accompany_cfg_t = logic,
-    parameter type xdma_to_remote_grant_t = logic,
-    parameter type xdma_req_desc_t = logic
+    parameter type xdma_to_remote_grant_t                = logic,
+    parameter type xdma_req_desc_t                       = logic
 ) (
     /// Clock
-    input  logic                    clk_i,
+    input  logic                                 clk_i,
     /// Asynchronous reset, active low
-    input  logic                    rst_ni,
+    input  logic                                 rst_ni,
+
+    input  addr_t                                cluster_base_addr_i,
+    ///
+    input  addr_t                                main_mem_base_addr_i,
     /// 
-    input xdma_from_remote_data_accompany_cfg_t xdma_from_remote_data_accompany_cfg_i,
+    input xdma_from_remote_data_accompany_cfg_t  xdma_from_remote_data_accompany_cfg_i,
     ///
-    output xdma_req_desc_t xdma_to_remote_grant_desc_o,
+    output xdma_req_desc_t                       xdma_to_remote_grant_desc_o,
     ///
-    output xdma_to_remote_grant_t xdma_to_remote_grant_o,
+    output xdma_to_remote_grant_t                xdma_to_remote_grant_o,
     ///
-    output logic  xdma_to_remote_grant_valid_o,
+    output logic                                 xdma_to_remote_grant_valid_o,
     ///
-    input  logic  xdma_to_remote_grant_ready_i
+    input  logic                                 xdma_to_remote_grant_ready_i
 );
     logic grant_valid;
     logic grant_happening;
@@ -67,7 +72,6 @@ module xdma_grant_manager #(
         endcase
     end
 
-
     //--------------------------------------
     // Unpack the to_remote_grant
     //--------------------------------------
@@ -78,7 +82,7 @@ module xdma_grant_manager #(
         xdma_to_remote_grant_desc_o.dma_id           = xdma_from_remote_data_accompany_cfg_i.dma_id;
         xdma_to_remote_grant_desc_o.dma_length       = xdma_from_remote_data_accompany_cfg_i.dma_length;
         xdma_to_remote_grant_desc_o.dma_type         = xdma_from_remote_data_accompany_cfg_i.dma_type;
-        xdma_to_remote_grant_desc_o.remote_addr      = xdma_from_remote_data_accompany_cfg_i.src_addr + xdma_pkg::ClusterXDMAGRANTMMIOOffset;
+        xdma_to_remote_grant_desc_o.remote_addr      = (xdma_from_remote_data_accompany_cfg_i.src_addr>=main_mem_base_addr_i)? xdma_pkg::MainMemEndAddr-xdma_pkg::MMIOGrantOffset : xdma_pkg::get_cluster_end_addr(xdma_from_remote_data_accompany_cfg_i.src_addr)-xdma_pkg::MMIOGrantOffset;
         xdma_to_remote_grant_desc_o.ready_to_transfer= xdma_from_remote_data_accompany_cfg_i.ready_to_transfer;
 
         //--------------------------------------

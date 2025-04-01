@@ -68,7 +68,7 @@ module xdma_burst_reshaper #(
     logic counter_clear;
     logic counter_load;
     len_t lens_counter_q;
-    addr_t remote_addr_q;
+
     delta_counter #(
         .WIDTH($bits(len_t))
     ) i_lens_counter(
@@ -83,21 +83,21 @@ module xdma_burst_reshaper #(
         .q_o       (lens_counter_q     ),
         .overflow_o()
     );
-
-    delta_counter #(
-        .WIDTH($bits(addr_t))
-    ) i_addr_counter(
-        .clk_i     (clk_i            ),
-        .rst_ni    (rst_ni           ),
-        .clear_i   (counter_clear    ),
-        .en_i      (counter_en       ),
-        .load_i    (counter_load     ),
-        .down_i    (1'b0             ),
-        .delta_i   (PageSize         ),
-        .d_i       (write_req_desc_i.remote_addr),
-        .q_o       (remote_addr_q    ),
-        .overflow_o()
-    );
+    // addr_t remote_addr_q;
+    // delta_counter #(
+    //     .WIDTH($bits(addr_t))
+    // ) i_addr_counter(
+    //     .clk_i     (clk_i            ),
+    //     .rst_ni    (rst_ni           ),
+    //     .clear_i   (counter_clear    ),
+    //     .en_i      (counter_en       ),
+    //     .load_i    (counter_load     ),
+    //     .down_i    (1'b0             ),
+    //     .delta_i   (PageSize         ),
+    //     .d_i       (write_req_desc_i.remote_addr),
+    //     .q_o       (remote_addr_q    ),
+    //     .overflow_o()
+    // );
 
 
     logic finish;
@@ -167,7 +167,7 @@ module xdma_burst_reshaper #(
         // create the AW request
         //-----------------------        
         write_req_aw_desc_o.id = write_req_desc_i.dma_id;
-        write_req_aw_desc_o.addr = remote_addr_q;
+        write_req_aw_desc_o.addr = write_req_desc_i.remote_addr;
         write_req_aw_desc_o.len = num_beats - 1; // the minus 1 here is from Length = axLen + 1
         write_req_aw_desc_o.size = 3'b110; // 64B //TODO: Should compute from a function
         write_req_aw_desc_o.burst = 2'b01; // BURST TYPE

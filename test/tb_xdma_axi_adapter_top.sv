@@ -11,7 +11,7 @@ module tb_xdma_axi_adapter_top();
     localparam int unsigned TbNumMasters       = TbNumClusters;
     localparam int unsigned TbNumSlaves        = TbNumClusters;
     localparam int unsigned TbPipeline         = 32'd1;
-    localparam int unsigned TbWideIdWidthIn    = 32'd2;
+    localparam int unsigned TbWideIdWidthIn    = 32'd8;
     localparam bit TbUniqueIds                 = 1'b0 ;
     localparam int unsigned TbAxiAddrWidth     =  32'd48;
     localparam int unsigned TbAxiDataWidth     =  32'd512;
@@ -44,8 +44,8 @@ module tb_xdma_axi_adapter_top();
         AxiDataWidth:       TbAxiDataWidth,
         NoAddrRules:        TbNumSlaves
     };
-    localparam addr_t ClusterBaseAddr = 'h1000_0000;
-    localparam addr_t ClusterAddressSpace = 'h0008_0000;
+    localparam addr_t ClusterBaseAddr = xdma_pkg::ClusterBaseAddr;
+    localparam addr_t ClusterAddressSpace =  xdma_pkg::ClusterAddressSpace;
     localparam xbar_rule_t [DmaXbarCfg.NoAddrRules-1:0] dma_xbar_rule = addr_map_gen(ClusterBaseAddr, ClusterAddressSpace);
 
     function xbar_rule_t [DmaXbarCfg.NoAddrRules-1:0] addr_map_gen(input addr_t ClusterBaseAddr, input addr_t ClusterAddressSpace);
@@ -176,6 +176,7 @@ module tb_xdma_axi_adapter_top();
         .clk_i                           (clk),
         .rst_ni                          (rst_n),
         .cluster_base_addr_i             (xdma_pkg::ClusterBaseAddr),
+        .main_mem_base_addr_i            (xdma_pkg::MainMemBaseAddr),
         // To remote cfg
         .to_remote_cfg_i                 (xdma_to_remote_cfg[0]),
         .to_remote_cfg_valid_i           (xdma_to_remote_cfg_valid[0]),
@@ -231,6 +232,7 @@ module tb_xdma_axi_adapter_top();
         .clk_i                           (clk),
         .rst_ni                          (rst_n),
         .cluster_base_addr_i             (xdma_pkg::ClusterBaseAddr + 1 * xdma_pkg::ClusterAddressSpace),
+        .main_mem_base_addr_i            (xdma_pkg::MainMemBaseAddr),
         // To remote cfg
         .to_remote_cfg_i                 (xdma_to_remote_cfg[1]),
         .to_remote_cfg_valid_i           (xdma_to_remote_cfg_valid[1]),

@@ -136,6 +136,8 @@ import xdma_pkg::*;
 
     ///
     input  addr_t                                cluster_base_addr_i,
+    ///
+    input  addr_t                                main_mem_base_addr_i,
     // Sender Side
     //// To remote cfg
     input  xdma_to_remote_cfg_t                  to_remote_cfg_i,
@@ -168,13 +170,15 @@ import xdma_pkg::*;
     input  axi_in_req_t                          axi_xdma_wide_in_req_i,
     output axi_in_resp_t                         axi_xdma_wide_in_resp_o
 );
+    
+
     //--------------------------------------
     // Unpack the req descriptor
     //--------------------------------------
     xdma_to_remote_grant_t to_remote_grant;
-    logic             to_remote_grant_valid;
-    logic             to_remote_grant_ready;
-    xdma_req_desc_t to_remote_cfg_desc, to_remote_data_desc, to_remote_grant_desc;
+    logic                  to_remote_grant_valid;
+    logic                  to_remote_grant_ready;
+    xdma_req_desc_t        to_remote_cfg_desc, to_remote_data_desc, to_remote_grant_desc;
     always_comb begin : proc_unpack_desc
         //--------------------------------------
         // to remote cfg desc
@@ -189,8 +193,8 @@ import xdma_pkg::*;
         // If the task is a write (task_type=1)
         // local is read addr, remote is writer addr
         to_remote_cfg_desc.remote_addr         = (to_remote_cfg_desc.dma_type == 1'b0)
-                                               ? to_remote_cfg_i.reader_addr + xdma_pkg::ClusterXDMACFGMMIOOffset
-                                               : to_remote_cfg_i.writer_addr.write_addr_0 + xdma_pkg::ClusterXDMACFGMMIOOffset;
+                                               ? (to_remote_cfg_i.reader_addr >= main_mem_base_addr_i) ? xdma_pkg::MainMemEndAddr-MMIOCFGOffset : xdma_pkg::get_cluster_end_addr(to_remote_cfg_i.reader_addr) - MMIOCFGOffset
+                                               : (to_remote_cfg_i.writer_addr.write_addr_0 >= main_mem_base_addr_i) ? xdma_pkg::MainMemEndAddr-MMIOCFGOffset : xdma_pkg::get_cluster_end_addr(to_remote_cfg_i.writer_addr.write_addr_0) - MMIOCFGOffset;
         // Now we assume there are only one 512bit cfg
         to_remote_cfg_desc.dma_length              = 1;
         // Ready to transfer
@@ -216,7 +220,7 @@ import xdma_pkg::*;
         //    now the accompany_cfg.src_addr = cluster 0 addr
         //            accompany_cfg.dst_addr = cluster 1 addr
         //    the to_remote_data_desc.remote_addr = dst_addr
-        to_remote_data_desc.remote_addr        = to_remote_data_accompany_cfg_i.dst_addr + xdma_pkg::ClusterXDMADataMMIOOffset;
+        to_remote_data_desc.remote_addr        = (to_remote_data_accompany_cfg_i.dst_addr>=main_mem_base_addr_i) ? xdma_pkg::MainMemEndAddr-MMIODataOffset : xdma_pkg::get_cluster_end_addr(to_remote_data_accompany_cfg_i.dst_addr) - MMIODataOffset;
         to_remote_data_desc.ready_to_transfer  = to_remote_data_accompany_cfg_i.ready_to_transfer;
 
         // //--------------------------------------
@@ -253,12 +257,15 @@ import xdma_pkg::*;
     // Grant Manager
     //--------------------------------------
     xdma_grant_manager #(
+        .addr_t                               (addr_t                               ),
         .xdma_from_remote_data_accompany_cfg_t(xdma_from_remote_data_accompany_cfg_t),
         .xdma_to_remote_grant_t               (xdma_to_remote_grant_t               ),
         .xdma_req_desc_t                      (xdma_req_desc_t                      )
     ) i_xdma_grant_manager (
         .clk_i                                ( clk_i                               ),
         .rst_ni                               ( rst_ni                              ),
+        .cluster_base_addr_i                  ( cluster_base_addr_i                 ),
+        .main_mem_base_addr_i                 ( main_mem_base_addr_i                ),
         .xdma_from_remote_data_accompany_cfg_i( from_remote_data_accompany_cfg_i    ),
         .xdma_to_remote_grant_desc_o          ( to_remote_grant_desc                ),
         .xdma_to_remote_grant_o               ( to_remote_grant                     ),
@@ -416,21 +423,25 @@ import xdma_pkg::*;
     // Receiver demux
     //-------------------------------------
     xdma_pkg::rule_t [xdma_pkg::NUM_OUP-1:0] xdma_rules;
+    addr_t cluster_end_addr;
+    addr_t local_end_addr;
+    assign cluster_end_addr = cluster_base_addr_i + xdma_pkg::ClusterAddressSpace;
+    assign local_end_addr = (cluster_base_addr_i==main_mem_base_addr_i)? xdma_pkg::MainMemEndAddr : cluster_end_addr;
     assign xdma_rules = {
         xdma_pkg::rule_t'{
         idx:        xdma_pkg::FromRemoteCfg,
-        start_addr: cluster_base_addr_i+xdma_pkg::ClusterXDMACFGMMIOOffset,
-        end_addr:   cluster_base_addr_i+xdma_pkg::ClusterXDMACFGMMIOOffset+xdma_pkg::ClusterXDMACFGMMIOSpace
+        start_addr: local_end_addr-xdma_pkg::MMIOCFGOffset,
+        end_addr:   local_end_addr-xdma_pkg::MMIOCFGOffset+xdma_pkg::MMIOSize
         },
         xdma_pkg::rule_t'{
         idx:        xdma_pkg::FromRemoteData,
-        start_addr: cluster_base_addr_i+xdma_pkg::ClusterXDMADataMMIOOffset,
-        end_addr:   cluster_base_addr_i+xdma_pkg::ClusterXDMADataMMIOOffset+xdma_pkg::ClusterXDMADataMMIOSpace
+        start_addr: local_end_addr-xdma_pkg::MMIODataOffset,
+        end_addr:   local_end_addr-xdma_pkg::MMIODataOffset+xdma_pkg::MMIOSize
         },
         xdma_pkg::rule_t'{
         idx:        xdma_pkg::FromRemoteGrant,
-        start_addr: cluster_base_addr_i+xdma_pkg::ClusterXDMAGRANTMMIOOffset,
-        end_addr:   cluster_base_addr_i+xdma_pkg::ClusterXDMAGRANTMMIOOffset+xdma_pkg::ClusterXDMAGRANTMMIOSPACE
+        start_addr: local_end_addr-xdma_pkg::MMIOGrantOffset,
+        end_addr:   local_end_addr-xdma_pkg::MMIOGrantOffset+xdma_pkg::MMIOSize
         }
     };
     data_t from_remote_grant;
