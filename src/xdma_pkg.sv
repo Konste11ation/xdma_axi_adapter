@@ -31,45 +31,84 @@ package xdma_pkg;
     // to remote cfg type
     //--------------------------------------
     typedef struct packed {
-        addr_t write_addr_0;
-        addr_t write_addr_1;
-        addr_t write_addr_2;
         addr_t write_addr_3;
+        addr_t write_addr_2;
+        addr_t write_addr_1;
+        addr_t write_addr_0;
     } xdma_inter_cluster_cfg_broadcast_t;
 
     typedef struct packed {
-        bound_t temporal_bound_0;
-        bound_t temporal_bound_1;
-        bound_t temporal_bound_2;
-        bound_t temporal_bound_3;
-        bound_t temporal_bound_4;
         bound_t temporal_bound_5;
+        bound_t temporal_bound_4;
+        bound_t temporal_bound_3;
+        bound_t temporal_bound_2;
+        bound_t temporal_bound_1;
+        bound_t temporal_bound_0;
     } xdma_inter_cluster_cfg_temporal_bound_t;
 
     typedef struct packed {
-        stride_t temporal_stride_0;
-        stride_t temporal_stride_1;
-        stride_t temporal_stride_2;
-        stride_t temporal_stride_3;
-        stride_t temporal_stride_4;
         stride_t temporal_stride_5;
+        stride_t temporal_stride_4;
+        stride_t temporal_stride_3;
+        stride_t temporal_stride_2;
+        stride_t temporal_stride_1;
+        stride_t temporal_stride_0;
     } xdma_inter_cluster_cfg_temporal_stride_t;
 
     typedef struct packed {
-        id_t                                     dma_id; 
+        enable_byte_t                            enable_byte;
+        enable_channel_t                         enable_channel;
+        xdma_inter_cluster_cfg_temporal_stride_t temporal_stride;
+        xdma_inter_cluster_cfg_temporal_bound_t  temporal_bound;
+        stride_t                                 spatial_stride;
+        xdma_inter_cluster_cfg_broadcast_t       writer_addr;
+        addr_t                                   reader_addr;
         // The dma_type
         // 0: read
         // 1: write
         logic                                    dma_type;
-        // The reader addr indicates the source of data
-        addr_t                                   reader_addr;
-        xdma_inter_cluster_cfg_broadcast_t       writer_addr;
-        stride_t                                 spatial_stride;
-        xdma_inter_cluster_cfg_temporal_bound_t  temporal_bound;
-        xdma_inter_cluster_cfg_temporal_stride_t temporal_stride;
-        enable_channel_t                         enable_channel;
-        enable_byte_t                            enable_byte;
+        id_t                                     dma_id;
     } xdma_inter_cluster_cfg_t;
+    // typedef struct packed {
+    //     addr_t write_addr_0;
+    //     addr_t write_addr_1;
+    //     addr_t write_addr_2;
+    //     addr_t write_addr_3;
+    // } xdma_inter_cluster_cfg_broadcast_t;
+
+    // typedef struct packed {
+    //     bound_t temporal_bound_0;
+    //     bound_t temporal_bound_1;
+    //     bound_t temporal_bound_2;
+    //     bound_t temporal_bound_3;
+    //     bound_t temporal_bound_4;
+    //     bound_t temporal_bound_5;
+    // } xdma_inter_cluster_cfg_temporal_bound_t;
+
+    // typedef struct packed {
+    //     stride_t temporal_stride_0;
+    //     stride_t temporal_stride_1;
+    //     stride_t temporal_stride_2;
+    //     stride_t temporal_stride_3;
+    //     stride_t temporal_stride_4;
+    //     stride_t temporal_stride_5;
+    // } xdma_inter_cluster_cfg_temporal_stride_t;
+
+    // typedef struct packed {
+    //     id_t                                     dma_id; 
+    //     // The dma_type
+    //     // 0: read
+    //     // 1: write
+    //     logic                                    dma_type;
+    //     // The reader addr indicates the source of data
+    //     addr_t                                   reader_addr;
+    //     xdma_inter_cluster_cfg_broadcast_t       writer_addr;
+    //     stride_t                                 spatial_stride;
+    //     xdma_inter_cluster_cfg_temporal_bound_t  temporal_bound;
+    //     xdma_inter_cluster_cfg_temporal_stride_t temporal_stride;
+    //     enable_channel_t                         enable_channel;
+    //     enable_byte_t                            enable_byte;
+    // } xdma_inter_cluster_cfg_t;
 
     typedef logic [AxiDataWidth-1:0] xdma_to_remote_data_t;
     typedef logic [AxiDataWidth-1:0] xdma_from_remote_data_t;
