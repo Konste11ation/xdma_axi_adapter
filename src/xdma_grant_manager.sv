@@ -26,7 +26,7 @@ module xdma_grant_manager #(
 );
     logic grant_valid;
     logic grant_happening;
-    assign grant_valid = xdma_from_remote_data_accompany_cfg_i.ready_to_transfer;
+    assign grant_valid = xdma_from_remote_data_accompany_cfg_i.ready_to_transfer && xdma_from_remote_data_accompany_cfg_i.dma_type;
     assign grant_happening = xdma_to_remote_grant_valid_o && xdma_to_remote_grant_ready_i;
     typedef enum logic [1:0] {
         IDLE,
