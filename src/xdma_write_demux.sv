@@ -34,12 +34,10 @@ module xdma_write_demux #(
     input addr_t inp_addr_i,
     input rule_t [N_OUP-1:0] addr_map_i,
     input data_t inp_data_i,
-    input logic  inp_last_i,
     input logic  inp_valid_i,
     output logic inp_ready_o,
     // Output side
     output data_t [N_OUP-1:0] oup_data_o,
-    output logic  [N_OUP-1:0] oup_last_o,
     output logic  [N_OUP-1:0] oup_valid_o,
     input  logic  [N_OUP-1:0] oup_ready_i
 );
@@ -64,10 +62,8 @@ module xdma_write_demux #(
 
     always_comb begin : proc_compose_output
         oup_data_o = '0;
-        oup_last_o = '0;
         oup_valid_o = '0;
         oup_data_o[oup_sel] = inp_data_i;
-        oup_last_o[oup_sel] = inp_last_i;
         oup_valid_o[oup_sel] = inp_valid_i && (addr_decode_valid && !addr_decode_error);
         inp_ready_o = oup_ready_i[oup_sel] && (addr_decode_valid && !addr_decode_error);
     end

@@ -26,6 +26,7 @@ package xdma_pkg;
     typedef logic [                  EnableByteWidth-1:0]  enable_byte_t;
     typedef logic [                   DMALengthWidth-1:0]  len_t;
     typedef logic [AxiDataWidth-DMAIdWidth-AddrWidth-1:0]  grant_reserved_t;
+    typedef logic [AxiDataWidth-DMAIdWidth-AddrWidth-1:0]  finish_reserved_t;
 
     //--------------------------------------
     // to remote cfg type
@@ -118,12 +119,23 @@ package xdma_pkg;
     // to remote IDX
     //--------------------------------------
     // Here we can tell if the write data is the to_remote_write
+
     typedef enum int unsigned {
-        ToRemoteCfg  = 0,
-        ToRemoteData = 1,
-        ToRemoteGrant= 2,
-        NUM_INP = 3
+        ToRemoteFinish = 0,
+        ToRemoteGrant  = 1,
+        ToRemoteCfg    = 2,
+        ToRemoteData   = 3,
+        NUM_INP = 4
     } xdma_to_remote_idx_e;
+
+    // typedef enum int unsigned {
+    //     ToRemoteCfg  = 0,
+    //     ToRemoteData = 1,
+    //     ToRemoteGrant= 2,
+    //     NUM_INP = 3
+    // } xdma_to_remote_idx_e;
+
+
     typedef logic [$clog2(NUM_INP)-1:0] xdma_req_idx_t;
     //--------------------------------------
     // Accompany CFG
@@ -173,6 +185,22 @@ package xdma_pkg;
     } xdma_from_remote_grant_t;
 
     //--------------------------------------
+    // to remote finish
+    //--------------------------------------
+    typedef struct packed {
+        id_t                                 dma_id;
+        addr_t                               from;
+        finish_reserved_t                    reserved;
+    } xdma_to_remote_finish_t;
+
+    //--------------------------------------
+    // From remote finish
+    //--------------------------------------
+    typedef struct packed {
+        id_t                                 dma_id;
+        addr_t                               from;
+    } xdma_from_remote_finish_t;
+    //--------------------------------------
     // AW desc
     //--------------------------------------
     typedef struct packed {
@@ -207,10 +235,11 @@ package xdma_pkg;
     //--------------------------------------
 
     typedef enum int unsigned {
-        FromRemoteCfg  = 0,
-        FromRemoteData = 1,
-        FromRemoteGrant= 2,
-        NUM_OUP = 3
+        FromRemoteFinish = 0,
+        FromRemoteGrant  = 1,
+        FromRemoteCfg    = 2,
+        FromRemoteData   = 3,
+        NUM_OUP = 4
     } xdma_from_remote_idx_e;
 
 
@@ -256,19 +285,21 @@ package xdma_pkg;
     // The addr space for the cluster is    1MB = 0x0010_0000
     // The cluster end addr is                  = 0x1010_0000
     // 4KB space is                             = 0x0000_1000
-    // We put the mmio at the end of the addr space                                        
-    // Virtual TCDM  ADDR                       = 0x100F_D000 - 0x100F_E000;
-    // Virtual CFG   ADDR                       = 0x100F_E000 - 0x100F_F000;
-    // Virtual GRANT ADDR                       = 0x100F_F000 - 0x1010_0000;  
+    // We put the mmio at the end of the addr space
+    // Virtual TCDM   ADDR                       = 0x100F_C000 - 0x100F_D000                                        
+    // Virtual CFG    ADDR                       = 0x100F_D000 - 0x100F_E000;
+    // Virtual GRANT  ADDR                       = 0x100F_E000 - 0x100F_F000;
+    // Virtual FINISH ADDR                       = 0x100F_F000 - 0x1010_0000;  
     localparam addr_t ClusterBaseAddr             = 'h1000_0000;
     localparam addr_t ClusterAddressSpace         = 'h0010_0000;
     localparam int    SHIFT_BITS                  = $clog2(ClusterAddressSpace);
     localparam addr_t MainMemBaseAddr             = 'h8000_0000;
     localparam addr_t MainMemEndAddr              =  48'b1 << 33;
     localparam addr_t MMIOSize                    = 'h0000_1000;
-    localparam addr_t MMIODataOffset              =  3*MMIOSize;
-    localparam addr_t MMIOCFGOffset               =  2*MMIOSize;
-    localparam addr_t MMIOGrantOffset             =  1*MMIOSize;
+    localparam addr_t MMIODataOffset              =  (FromRemoteData+1  )*MMIOSize;
+    localparam addr_t MMIOCFGOffset               =  (FromRemoteCfg+1   )*MMIOSize;
+    localparam addr_t MMIOGrantOffset             =  (FromRemoteGrant+1 )*MMIOSize;
+    localparam addr_t MMIOFinishOffset            =  (FromRemoteFinish+1)*MMIOSize;
 
     function int get_cluster_id(addr_t addr);
         return (addr - ClusterBaseAddr) >> SHIFT_BITS;

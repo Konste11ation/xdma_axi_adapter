@@ -119,7 +119,7 @@ module tb_xdma_axi_adapter_top();
     // which is enough to test the whole system
 
     /// XDMA signals
-
+    logic [TbNumClusters-1:0] xdma_finish;
     ///---------------------
     /// TO REMOTE
     ///---------------------
@@ -138,12 +138,10 @@ module tb_xdma_axi_adapter_top();
     ///---------------------
     // from remote cfg
     xdma_pkg::xdma_inter_cluster_cfg_t [TbNumClusters-1:0] xdma_from_remote_cfg;
-    logic [TbNumClusters-1:0] xdma_from_remote_cfg_last;
     logic [TbNumClusters-1:0] xdma_from_remote_cfg_valid;
     logic [TbNumClusters-1:0] xdma_from_remote_cfg_ready;
     // from remote data
     xdma_pkg::xdma_from_remote_data_t [TbNumClusters-1:0] xdma_from_remote_data;
-    logic [TbNumClusters-1:0] xdma_from_remote_data_last;
     logic [TbNumClusters-1:0] xdma_from_remote_data_valid;
     logic [TbNumClusters-1:0] xdma_from_remote_data_ready;
     // from remote data accompany cfg
@@ -176,7 +174,6 @@ module tb_xdma_axi_adapter_top();
         .clk_i                           (clk),
         .rst_ni                          (rst_n),
         .cluster_base_addr_i             (xdma_pkg::ClusterBaseAddr),
-        .main_mem_base_addr_i            (xdma_pkg::MainMemBaseAddr),
         // To remote cfg
         .to_remote_cfg_i                 (xdma_to_remote_cfg[0]),
         .to_remote_cfg_valid_i           (xdma_to_remote_cfg_valid[0]),
@@ -189,16 +186,16 @@ module tb_xdma_axi_adapter_top();
         .to_remote_data_accompany_cfg_i  (xdma_to_remote_data_accompany_cfg[0]),
         // from remote cfg
         .from_remote_cfg_o               (xdma_from_remote_cfg[0]),
-        .from_remote_cfg_last_o          (xdma_from_remote_cfg_last[0]),
         .from_remote_cfg_valid_o         (xdma_from_remote_cfg_valid[0]),
         .from_remote_cfg_ready_i         (xdma_from_remote_cfg_ready[0]),
         // from remote data
         .from_remote_data_o              (xdma_from_remote_data[0]),
-        .from_remote_data_last_o         (xdma_from_remote_data_last[0]),
         .from_remote_data_valid_o        (xdma_from_remote_data_valid[0]),
         .from_remote_data_ready_i        (xdma_from_remote_data_ready[0]),
         // from remote data accompany cfg
         .from_remote_data_accompany_cfg_i(xdma_from_remote_data_accompany_cfg[0]),
+        // xdma finish
+        .xdma_finish_o                   (xdma_finish[0]),
         // AXI interface
         .axi_xdma_wide_out_req_o         (wide_axi_mst_req[0]),
         .axi_xdma_wide_out_resp_i        (wide_axi_mst_rsp[0]),
@@ -232,7 +229,6 @@ module tb_xdma_axi_adapter_top();
         .clk_i                           (clk),
         .rst_ni                          (rst_n),
         .cluster_base_addr_i             (xdma_pkg::ClusterBaseAddr + 1 * xdma_pkg::ClusterAddressSpace),
-        .main_mem_base_addr_i            (xdma_pkg::MainMemBaseAddr),
         // To remote cfg
         .to_remote_cfg_i                 (xdma_to_remote_cfg[1]),
         .to_remote_cfg_valid_i           (xdma_to_remote_cfg_valid[1]),
@@ -245,16 +241,16 @@ module tb_xdma_axi_adapter_top();
         .to_remote_data_accompany_cfg_i  (xdma_to_remote_data_accompany_cfg[1]),
         // from remote cfg
         .from_remote_cfg_o               (xdma_from_remote_cfg[1]),
-        .from_remote_cfg_last_o          (xdma_from_remote_cfg_last[1]),
         .from_remote_cfg_valid_o         (xdma_from_remote_cfg_valid[1]),
         .from_remote_cfg_ready_i         (xdma_from_remote_cfg_ready[1]),
         // from remote data
         .from_remote_data_o              (xdma_from_remote_data[1]),
-        .from_remote_data_last_o         (xdma_from_remote_data_last[1]),
         .from_remote_data_valid_o        (xdma_from_remote_data_valid[1]),
         .from_remote_data_ready_i        (xdma_from_remote_data_ready[1]),
         // from remote data accompany cfg
         .from_remote_data_accompany_cfg_i(xdma_from_remote_data_accompany_cfg[1]),
+        //
+        .xdma_finish_o                   (xdma_finish[1]),
         // AXI interface
         .axi_xdma_wide_out_req_o         (wide_axi_mst_req[1]),
         .axi_xdma_wide_out_resp_i        (wide_axi_mst_rsp[1]),
@@ -296,6 +292,7 @@ endtask
 
 
 task automatic read_send_cfg;
+    $display("Start Send CFG");
     xdma_to_remote_cfg[0].dma_id <= #ApplTime 8'd88;
     xdma_to_remote_cfg[0].dma_type <= #ApplTime '0;
     xdma_to_remote_cfg[0].reader_addr <= #ApplTime xdma_pkg::ClusterBaseAddr + 1 * xdma_pkg::ClusterAddressSpace;
@@ -325,15 +322,23 @@ task automatic read_send_cfg;
     cycle_end();
     xdma_to_remote_cfg[0] <= #ApplTime '0;
     xdma_to_remote_cfg_valid[0] <= #ApplTime 0;
+    xdma_from_remote_data_accompany_cfg[0].dma_id <= #ApplTime 8'd88;
+    xdma_from_remote_data_accompany_cfg[0].dma_type <= #ApplTime '0;
+    xdma_from_remote_data_accompany_cfg[0].src_addr <= #ApplTime xdma_pkg::ClusterBaseAddr + 1 * xdma_pkg::ClusterAddressSpace;
+    xdma_from_remote_data_accompany_cfg[0].dst_addr <= #ApplTime xdma_pkg::ClusterBaseAddr;
+    xdma_from_remote_data_accompany_cfg[0].dma_length <= #ApplTime 100;
+    xdma_from_remote_data_accompany_cfg[0].ready_to_transfer <= #ApplTime 1;
+    $display("End Send CFG");
 endtask
 
 task automatic read_send_data;
+    
     xdma_pkg::data_t local_mem[$];
     int dma_length = 100;
     for (int i = 1; i <= dma_length; i++) begin
         local_mem.push_back(1024 + i);
     end
-
+    $display("Start Send Data");
     xdma_to_remote_data_accompany_cfg[1].dma_id <= #ApplTime 8'd88;
     xdma_to_remote_data_accompany_cfg[1].dma_length <= #ApplTime 'd100;
     xdma_to_remote_data_accompany_cfg[1].dma_type <= #ApplTime '0;
@@ -342,6 +347,7 @@ task automatic read_send_data;
     xdma_to_remote_data_accompany_cfg[1].ready_to_transfer <= #ApplTime 1'b1;
     // standard axi handshake for
     for (int i = 1; i <= dma_length; i++) begin
+        rand_wait(0,5);
         $display("Send Data idx = %d", i);
         xdma_to_remote_data[1] = local_mem.pop_front();
         xdma_to_remote_data_valid[1] = 1'b1;
@@ -350,10 +356,11 @@ task automatic read_send_data;
         end
         cycle_end();
         xdma_to_remote_data_valid[1] = 1'b0;
-        rand_wait(0,5);
     end
-    
+
 endtask
+
+
 
 task automatic write_send_cfg;
     xdma_to_remote_cfg[0].dma_id <= #ApplTime 8'd88;
@@ -395,7 +402,7 @@ task automatic write_send_data;
     end
 
     xdma_from_remote_data_accompany_cfg[1].dma_id <= #ApplTime 8'd88;
-    xdma_from_remote_data_accompany_cfg[1].dma_length <= #ApplTime 'd1;
+    xdma_from_remote_data_accompany_cfg[1].dma_length <= #ApplTime 'd100;
     xdma_from_remote_data_accompany_cfg[1].dma_type <= #ApplTime 1'b1;
     xdma_from_remote_data_accompany_cfg[1].src_addr <= #ApplTime xdma_pkg::ClusterBaseAddr;
     xdma_from_remote_data_accompany_cfg[1].dst_addr <= #ApplTime xdma_pkg::ClusterBaseAddr + 1 * xdma_pkg::ClusterAddressSpace;
@@ -421,7 +428,6 @@ task automatic write_send_data;
         xdma_to_remote_data_valid[0] = 1'b0;
         rand_wait(0,5);
     end
-    
 endtask
 
 
@@ -432,14 +438,21 @@ endtask
 initial begin
     reset_xdma();
     rand_wait(20,20);
+
     write_send_cfg();
     wait(xdma_from_remote_cfg_valid[1]);
     rand_wait(1,5);
     write_send_data();
+
+
+
     // read_send_cfg();
     // wait(xdma_from_remote_cfg_valid[1]);
     // rand_wait(1,5);
     // read_send_data();
+    // wait(xdma_finish[0]);
+    // xdma_from_remote_data_accompany_cfg[0].ready_to_transfer <= #ApplTime 0;
+    // $display("Send Finish");
 
     repeat(10) begin cycle_end(); cycle_start(); end    
     $finish;

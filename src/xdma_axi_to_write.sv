@@ -24,8 +24,6 @@ module xdma_axi_to_write #(
     input  logic                           rst_ni,
     /// The unit is busy handling an AXI4+ATOP request.
     output logic                           busy_o,
-    /// The last signal to the xdma input ports
-    output logic                           last_o,
     /// AXI4+ATOP slave port, request input.
     input  axi_in_req_t                    axi_req_i,
     /// AXI4+ATOP slave port, response output.
@@ -107,8 +105,6 @@ module xdma_axi_to_write #(
         reqrsp_req_o.p_ready = 1'b1;
     end
 
-    // Compose the last
-    assign last_o = wr_meta.last;
 
     // Tie-off unused axi rsp
     // We do not need any ar channel

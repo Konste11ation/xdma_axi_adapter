@@ -78,7 +78,7 @@ module xdma_grant_manager #(
         // Description
         //--------------------------------------   
         xdma_to_remote_grant_desc_o.dma_id           = xdma_from_remote_data_accompany_cfg_i.dma_id;
-        xdma_to_remote_grant_desc_o.dma_length       = xdma_from_remote_data_accompany_cfg_i.dma_length;
+        xdma_to_remote_grant_desc_o.dma_length       = 1;
         xdma_to_remote_grant_desc_o.dma_type         = xdma_from_remote_data_accompany_cfg_i.dma_type;
         xdma_to_remote_grant_desc_o.remote_addr      = (xdma_from_remote_data_accompany_cfg_i.src_addr>=xdma_pkg::MainMemBaseAddr)? xdma_pkg::MainMemEndAddr-xdma_pkg::MMIOGrantOffset : xdma_pkg::get_cluster_end_addr(xdma_from_remote_data_accompany_cfg_i.src_addr)-xdma_pkg::MMIOGrantOffset;
         xdma_to_remote_grant_desc_o.ready_to_transfer= xdma_from_remote_data_accompany_cfg_i.ready_to_transfer;

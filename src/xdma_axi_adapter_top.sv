@@ -151,17 +151,16 @@ import xdma_pkg::*;
     // Receiver Side
     //// From remote cfg
     output xdma_from_remote_cfg_t                from_remote_cfg_o,
-    output logic                                 from_remote_cfg_last_o,
     output logic                                 from_remote_cfg_valid_o,
     input  logic                                 from_remote_cfg_ready_i,
     //// From remote data
     output xdma_from_remote_data_t               from_remote_data_o,
-    output logic                                 from_remote_data_last_o,
     output logic                                 from_remote_data_valid_o,
     input  logic                                 from_remote_data_ready_i,
     //// From remote data accompany cfg
     input  xdma_from_remote_data_accompany_cfg_t from_remote_data_accompany_cfg_i,
-
+    /// XDMA finish
+    output logic                                 xdma_finish_o,
     // AXI Interface
     output axi_out_req_t                         axi_xdma_wide_out_req_o,
     input  axi_out_resp_t                        axi_xdma_wide_out_resp_i,
@@ -173,10 +172,16 @@ import xdma_pkg::*;
     //--------------------------------------
     // Unpack the req descriptor
     //--------------------------------------
-    xdma_to_remote_grant_t to_remote_grant;
-    logic                  to_remote_grant_valid;
-    logic                  to_remote_grant_ready;
-    xdma_req_desc_t        to_remote_cfg_desc, to_remote_data_desc, to_remote_grant_desc;
+    // To remote grant
+    xdma_to_remote_grant_t  to_remote_grant;
+    logic                   to_remote_grant_valid;
+    logic                   to_remote_grant_ready;
+    // To remote finish
+    xdma_to_remote_finish_t to_remote_finish;
+    logic                   to_remote_finish_valid;
+    logic                   to_remote_finish_ready;
+    // Descriptions
+    xdma_req_desc_t         to_remote_cfg_desc, to_remote_data_desc, to_remote_grant_desc, to_remote_finish_desc;
     always_comb begin : proc_unpack_desc
         //--------------------------------------
         // to remote cfg desc
@@ -251,6 +256,8 @@ import xdma_pkg::*;
     //     to_remote_grant.reserved = '0;
     //     to_remote_grant_valid = from_remote_data_accompany_cfg_i.ready_to_transfer;
     // end
+
+
     //--------------------------------------
     // Grant Manager
     //--------------------------------------
@@ -292,21 +299,25 @@ import xdma_pkg::*;
     ) i_xdma_req_manager(
         .clk_i       ( clk_i                     ),
         .rst_ni      ( rst_ni                    ),
-        .inp_data_i  ( {data_t'(to_remote_grant),
-                        data_t'(to_remote_data_i),
-                        data_t'(to_remote_cfg_i)}),
-        .inp_valid_i ( {to_remote_grant_valid,
-                        to_remote_data_valid_i,
-                        to_remote_cfg_valid_i}   ),
-        .inp_ready_o ( {to_remote_grant_ready,
-                        to_remote_data_ready_o,
-                        to_remote_cfg_ready_o}   ),
+        .inp_data_i  ( {data_t'(to_remote_data_i),
+                        data_t'(to_remote_cfg_i ),
+                        data_t'(to_remote_grant ),
+                        data_t'(to_remote_finish)}),
+        .inp_valid_i ( {to_remote_data_valid_i,
+                        to_remote_cfg_valid_i,
+                        to_remote_grant_valid,
+                        to_remote_finish_valid}  ),
+        .inp_ready_o ( {to_remote_data_ready_o,
+                        to_remote_cfg_ready_o,
+                        to_remote_grant_ready,
+                        to_remote_finish_ready}  ),
+        .inp_desc_i  ( {to_remote_data_desc,
+                        to_remote_cfg_desc,
+                        to_remote_grant_desc,
+                        to_remote_finish_desc}   ),
         .oup_data_o  ( write_req_data            ),
         .oup_valid_o ( write_req_valid           ),
         .oup_ready_i ( write_req_ready           ),
-        .inp_desc_i  ( {to_remote_grant_desc,
-                        to_remote_data_desc,
-                        to_remote_cfg_desc}      ),
         .oup_desc_o  ( write_req_desc            ),
         .idx_o       ( write_req_idx             ),
         .start_o     ( write_req_start           ),
@@ -387,7 +398,6 @@ import xdma_pkg::*;
     reqrsp_req_t receive_write_req;
     reqrsp_rsp_t receive_write_rsp;
     logic receiver_busy;
-    logic receive_last;
     xdma_axi_to_write #(
         .data_t       (data_t),
         .addr_t       (addr_t),
@@ -407,8 +417,7 @@ import xdma_pkg::*;
         .reqrsp_req_o( receive_write_req         ),
         .reqrsp_rsp_i( receive_write_rsp         ),
         // Status
-        .busy_o      ( receiver_busy             ),
-        .last_o      ( receive_last              )        
+        .busy_o      ( receiver_busy             )     
     );
     // We only care on the aw/w, hence no read is back from the rsp
     always_comb begin : proc_write_rsp_compose
@@ -426,25 +435,33 @@ import xdma_pkg::*;
     assign local_end_addr = (cluster_base_addr_i==xdma_pkg::MainMemBaseAddr)? xdma_pkg::MainMemEndAddr : cluster_end_addr;
     assign xdma_rules = {
         xdma_pkg::rule_t'{
-        idx:        xdma_pkg::FromRemoteCfg,
-        start_addr: local_end_addr-xdma_pkg::MMIOCFGOffset,
-        end_addr:   local_end_addr-xdma_pkg::MMIOCFGOffset+xdma_pkg::MMIOSize
-        },
-        xdma_pkg::rule_t'{
         idx:        xdma_pkg::FromRemoteData,
         start_addr: local_end_addr-xdma_pkg::MMIODataOffset,
         end_addr:   local_end_addr-xdma_pkg::MMIODataOffset+xdma_pkg::MMIOSize
         },
         xdma_pkg::rule_t'{
+        idx:        xdma_pkg::FromRemoteCfg,
+        start_addr: local_end_addr-xdma_pkg::MMIOCFGOffset,
+        end_addr:   local_end_addr-xdma_pkg::MMIOCFGOffset+xdma_pkg::MMIOSize
+        },
+        xdma_pkg::rule_t'{
         idx:        xdma_pkg::FromRemoteGrant,
         start_addr: local_end_addr-xdma_pkg::MMIOGrantOffset,
         end_addr:   local_end_addr-xdma_pkg::MMIOGrantOffset+xdma_pkg::MMIOSize
+        },
+        xdma_pkg::rule_t'{
+        idx:        xdma_pkg::FromRemoteFinish,
+        start_addr: local_end_addr-xdma_pkg::MMIOFinishOffset,
+        end_addr:   local_end_addr-xdma_pkg::MMIOFinishOffset+xdma_pkg::MMIOSize
         }
     };
     data_t from_remote_grant;
     logic  from_remote_grant_valid;
     logic  from_remote_grant_ready;
 
+    data_t from_remote_finish;
+    logic  from_remote_finish_valid;
+    logic  from_remote_finish_ready;
     xdma_write_demux #(
         .N_OUP(xdma_pkg::NUM_OUP),
         .data_t(data_t),
@@ -455,22 +472,21 @@ import xdma_pkg::*;
         .inp_addr_i    (receive_write_req.addr   ),
         .addr_map_i    (xdma_rules               ),
         .inp_data_i    (receive_write_req.data   ),
-        .inp_last_i    (receive_last             ),
         .inp_valid_i   (receive_write_req.q_valid),
         .inp_ready_o   (receive_write_rsp.q_ready),
         // Outpu side
-        .oup_data_o({from_remote_grant,
-                     from_remote_data_o,
-                     from_remote_cfg_o}),
-        .oup_last_o({from_remote_grant_last,
-                     from_remote_data_last_o,
-                     from_remote_cfg_last_o}),
-        .oup_valid_o({from_remote_grant_valid,
-                      from_remote_data_valid_o,
-                      from_remote_cfg_valid_o}),
-        .oup_ready_i({from_remote_grant_ready,
-                      from_remote_data_ready_i,
-                      from_remote_cfg_ready_i})
+        .oup_data_o({from_remote_data_o,
+                     from_remote_cfg_o,
+                     from_remote_grant,
+                     from_remote_finish}),
+        .oup_valid_o({from_remote_data_valid_o,
+                      from_remote_cfg_valid_o,
+                      from_remote_grant_valid,
+                      from_remote_finish_valid}),
+        .oup_ready_i({from_remote_data_ready_i,
+                      from_remote_cfg_ready_i,
+                      from_remote_grant_ready,
+                      from_remote_finish_ready})
     );
 
     //-------------------------------------
@@ -494,7 +510,7 @@ import xdma_pkg::*;
     fifo_v3 #(
         .dtype(xdma_from_remote_grant_t),
         .DEPTH(3)
-    ) i_receive_grant_fifo (
+    ) i_xdma_receive_grant_fifo (
         .clk_i     (clk_i),
         .rst_ni    (rst_ni),
         .flush_i   (1'b0),
@@ -512,4 +528,34 @@ import xdma_pkg::*;
     assign grant_fifo_pop = !grant_fifo_empty & write_req_done;
     assign from_remote_grant_ready = !grant_fifo_full;
     assign grant_fifo_push = from_remote_grant_valid & !grant_fifo_full;
+
+    logic from_remote_data_happening;
+    assign from_remote_data_happening = from_remote_data_valid_o&&from_remote_data_ready_i;
+    xdma_finish_manager #(
+        .id_t                                 (id_t),
+        .len_t                                (len_t),
+        .addr_t                               (addr_t),
+        .data_t                               (data_t),
+        .xdma_to_remote_data_accompany_cfg_t  (xdma_to_remote_data_accompany_cfg_t  ),
+        .xdma_from_remote_data_accompany_cfg_t(xdma_from_remote_data_accompany_cfg_t),
+        .xdma_req_desc_t                      (xdma_req_desc_t                      ),
+        .xdma_to_remote_finish_t              (xdma_to_remote_finish_t              ),
+        .xdma_from_remote_finish_t            (xdma_from_remote_finish_t            )
+    ) i_xdma_finish_manager (
+        .clk_i                           (clk_i                           ),
+        .rst_ni                          (rst_ni                          ),
+        .cluster_base_addr_i             (cluster_base_addr_i             ),
+        .xdma_finish_o                   (xdma_finish_o                   ),
+        .to_remote_data_accompany_cfg_i  (to_remote_data_accompany_cfg_i  ),
+        .from_remote_data_happening_i    (from_remote_data_happening      ),
+        .from_remote_data_accompany_cfg_i(from_remote_data_accompany_cfg_i),
+        .from_remote_finish_i            (from_remote_finish              ),
+        .from_remote_finish_valid_i      (from_remote_finish_valid        ),
+        .from_remote_finish_ready_o      (from_remote_finish_ready        ),
+        .to_remote_finish_o              (to_remote_finish                ),
+        .to_remote_finish_valid_o        (to_remote_finish_valid          ),
+        .to_remote_finish_ready_i        (to_remote_finish_ready          ),
+        .to_remote_finish_desc_o         (to_remote_finish_desc           )
+    );
+
 endmodule : xdma_axi_adapter_top
