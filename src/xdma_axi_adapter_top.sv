@@ -449,25 +449,25 @@ module xdma_axi_adapter_top
 '{
         idx: xdma_pkg::FromRemoteData,
         start_addr: local_end_addr - MMIODataOffset,
-        end_addr: local_end_addr - MMIODataOffset + MMIOSize * 1024
+        end_addr: local_end_addr - MMIODataOffset + (MMIOSize/4) * 1024
     },
     xdma_pkg::rule_t
 '{
         idx: xdma_pkg::FromRemoteCfg,
         start_addr: local_end_addr - MMIOCFGOffset,
-        end_addr: local_end_addr - MMIOCFGOffset + MMIOSize * 1024
+        end_addr: local_end_addr - MMIOCFGOffset + (MMIOSize/4) * 1024
     },
     xdma_pkg::rule_t
 '{
         idx: xdma_pkg::FromRemoteGrant,
         start_addr: local_end_addr - MMIOGrantOffset,
-        end_addr: local_end_addr - MMIOGrantOffset + MMIOSize * 1024
+        end_addr: local_end_addr - MMIOGrantOffset + (MMIOSize/4) * 1024
     },
     xdma_pkg::rule_t
 '{
         idx: xdma_pkg::FromRemoteFinish,
         start_addr: local_end_addr - MMIOFinishOffset,
-        end_addr: local_end_addr - MMIOFinishOffset + MMIOSize * 1024
+        end_addr: local_end_addr - MMIOFinishOffset + (MMIOSize/4) * 1024
     }
   };
   data_t from_remote_grant;
