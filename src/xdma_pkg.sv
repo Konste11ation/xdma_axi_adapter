@@ -294,7 +294,7 @@ package xdma_pkg;
     localparam addr_t ClusterAddressSpace         = 'h0010_0000;
     localparam int    SHIFT_BITS                  = $clog2(ClusterAddressSpace);
     localparam addr_t MainMemBaseAddr             = 'h8000_0000;
-    localparam addr_t MainMemEndAddr              =  48'b1 << 33;
+    localparam addr_t MainMemEndAddr              =  48'b1 << 32;
     localparam addr_t MMIOSize                    = 'h0000_1000;
     localparam addr_t MMIODataOffset              =  (FromRemoteData+1  )*MMIOSize;
     localparam addr_t MMIOCFGOffset               =  (FromRemoteCfg+1   )*MMIOSize;
