@@ -132,7 +132,7 @@ module xdma_axi_adapter_top
     parameter addr_t ClusterBaseAddr     = 'h1000_0000,
     parameter addr_t ClusterAddressSpace = 'h0010_0000,
     parameter addr_t MainMemBaseAddr     = 'h8000_0000,
-    parameter addr_t MainEndBaseAddr     = 48'b1 << 32,
+    parameter addr_t MainMemEndAddr      = 48'b1 << 32,
     // MMIO size in KB
     parameter int    MMIOSize            = 16
 ) (
@@ -178,10 +178,10 @@ module xdma_axi_adapter_top
   // Define Macros
   //--------------------------------------
   localparam int SHIFT_BITS = $clog2(ClusterAddressSpace);
-  localparam addr_t MMIODataOffset = (xdma_pkg::FromRemoteData + 1) * MMIOSize;
-  localparam addr_t MMIOCFGOffset = (xdma_pkg::FromRemoteCfg + 1) * MMIOSize;
-  localparam addr_t MMIOGrantOffset = (xdma_pkg::FromRemoteGrant + 1) * MMIOSize;
-  localparam addr_t MMIOFinishOffset = (xdma_pkg::FromRemoteFinish + 1) * MMIOSize;
+  localparam addr_t MMIODataOffset = (xdma_pkg::FromRemoteData + 1) * MMIOSize * 1024;
+  localparam addr_t MMIOCFGOffset = (xdma_pkg::FromRemoteCfg + 1) * MMIOSize * 1024;
+  localparam addr_t MMIOGrantOffset = (xdma_pkg::FromRemoteGrant + 1) * MMIOSize * 1024;
+  localparam addr_t MMIOFinishOffset = (xdma_pkg::FromRemoteFinish + 1) * MMIOSize * 1024;
   function int get_cluster_id(addr_t addr);
     return (addr - ClusterBaseAddr) >> SHIFT_BITS;
   endfunction
@@ -268,18 +268,19 @@ module xdma_axi_adapter_top
     to_remote_grant_desc.remote_addr = (from_remote_data_accompany_cfg_i.src_addr>=MainMemBaseAddr)? MainMemEndAddr-MMIOGrantOffset : get_cluster_end_addr(
         from_remote_data_accompany_cfg_i.src_addr) - MMIOGrantOffset;
     to_remote_grant_desc.ready_to_transfer = from_remote_data_accompany_cfg_i.ready_to_transfer;
+
   end
 
   //--------------------------------------
   // Grant Manager
   //--------------------------------------
-  to_remote_grant.dma_id = from_remote_data_accompany_cfg_i.dma_id;
-  to_remote_grant.from = from_remote_data_accompany_cfg_i.src_addr;
-  to_remote_grant.reserved = '0;
-
+  always_comb begin
+    to_remote_grant.dma_id = from_remote_data_accompany_cfg_i.dma_id;
+    to_remote_grant.from = from_remote_data_accompany_cfg_i.src_addr;
+    to_remote_grant.reserved = '0;
+  end
   xdma_grant_manager #(
       .xdma_from_remote_data_accompany_cfg_t(xdma_from_remote_data_accompany_cfg_t)
-
   ) i_xdma_grant_manager (
       .clk_i                                (clk_i),
       .rst_ni                               (rst_ni),
@@ -448,25 +449,25 @@ module xdma_axi_adapter_top
 '{
         idx: xdma_pkg::FromRemoteData,
         start_addr: local_end_addr - MMIODataOffset,
-        end_addr: local_end_addr - MMIODataOffset + MMIOSize
+        end_addr: local_end_addr - MMIODataOffset + MMIOSize * 1024
     },
     xdma_pkg::rule_t
 '{
         idx: xdma_pkg::FromRemoteCfg,
         start_addr: local_end_addr - MMIOCFGOffset,
-        end_addr: local_end_addr - MMIOCFGOffset + MMIOSize
+        end_addr: local_end_addr - MMIOCFGOffset + MMIOSize * 1024
     },
     xdma_pkg::rule_t
 '{
         idx: xdma_pkg::FromRemoteGrant,
         start_addr: local_end_addr - MMIOGrantOffset,
-        end_addr: local_end_addr - MMIOGrantOffset + MMIOSize
+        end_addr: local_end_addr - MMIOGrantOffset + MMIOSize * 1024
     },
     xdma_pkg::rule_t
 '{
         idx: xdma_pkg::FromRemoteFinish,
         start_addr: local_end_addr - MMIOFinishOffset,
-        end_addr: local_end_addr - MMIOFinishOffset + MMIOSize
+        end_addr: local_end_addr - MMIOFinishOffset + MMIOSize * 1024
     }
   };
   data_t from_remote_grant;
@@ -538,13 +539,17 @@ module xdma_axi_adapter_top
       .data_o    (receive_grant_cur),
       .pop_i     (grant_fifo_pop)
   );
-  // 
   assign grant = !grant_fifo_empty & (receive_grant_cur.dma_id == cur_dma_id);
   assign grant_fifo_pop = !grant_fifo_empty & write_req_done;
   assign from_remote_grant_ready = !grant_fifo_full;
   assign grant_fifo_push = from_remote_grant_valid & !grant_fifo_full;
 
-  logic from_remote_data_happening;
+  //-------------------------------------
+  // Finish Manager
+  //-------------------------------------  
+  logic  from_remote_data_happening;
+  addr_t remote_addr;
+  id_t   from_remote_dma_id;
   assign from_remote_data_happening = from_remote_data_valid_o && from_remote_data_ready_i;
   xdma_finish_manager #(
       .id_t                                 (id_t),
@@ -567,10 +572,26 @@ module xdma_axi_adapter_top
       .from_remote_finish_i            (from_remote_finish),
       .from_remote_finish_valid_i      (from_remote_finish_valid),
       .from_remote_finish_ready_o      (from_remote_finish_ready),
-      .to_remote_finish_o              (to_remote_finish),
+      .remote_addr_o                   (remote_addr),
+      .from_remote_dma_id_o            (from_remote_dma_id),
       .to_remote_finish_valid_o        (to_remote_finish_valid),
-      .to_remote_finish_ready_i        (to_remote_finish_ready),
-      .to_remote_finish_desc_o         (to_remote_finish_desc)
+      .to_remote_finish_ready_i        (to_remote_finish_ready)
   );
+  always_comb begin : proc_unpack_finish_desc
+    //--------------------------------------
+    // to remote finish desc
+    //--------------------------------------
+    to_remote_finish_desc.dma_id = from_remote_dma_id;
+    to_remote_finish_desc.dma_type = 1'b1;  // write
+    to_remote_finish_desc.remote_addr= (remote_addr>=MainMemBaseAddr)? MainMemEndAddr-MMIOFinishOffset : get_cluster_end_addr(
+        remote_addr) - MMIOFinishOffset;
+    to_remote_finish_desc.dma_length = 1;
+    to_remote_finish_desc.ready_to_transfer = to_remote_finish_valid;
+  end
 
+  always_comb begin : proc_unpack_finish
+    to_remote_finish = '0;
+    to_remote_finish.dma_id = from_remote_dma_id;
+    to_remote_finish.from = cluster_base_addr_i;
+  end
 endmodule : xdma_axi_adapter_top

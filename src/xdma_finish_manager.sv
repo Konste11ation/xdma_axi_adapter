@@ -36,10 +36,10 @@ module xdma_finish_manager #(
     input  logic                                 from_remote_finish_valid_i,
     output logic                                 from_remote_finish_ready_o,
 
-    output xdma_to_remote_finish_t to_remote_finish_o,
-    output logic                   to_remote_finish_valid_o,
-    input  logic                   to_remote_finish_ready_i,
-    output xdma_req_desc_t         to_remote_finish_desc_o
+    output addr_t                                remote_addr_o,
+    output id_t                                  from_remote_dma_id_o,
+    output logic                                 to_remote_finish_valid_o,
+    input  logic                                 to_remote_finish_ready_i
     // typedef struct packed {
     //     id_t                                 dma_id; 
     //     logic                                dma_type;
@@ -310,20 +310,22 @@ module xdma_finish_manager #(
       end
     endcase
   end
-
-  // to remote finish composition
-  always_comb begin : proc_to_remote_finish
-    to_remote_finish_o = '0;
-    to_remote_finish_o.dma_id = from_remote_dma_id_q;
-    to_remote_finish_o.from = cluster_base_addr_i;
-    to_remote_finish_valid_o = valid_to_send_finish;
-    to_remote_finish_desc_o.dma_id = from_remote_dma_id_q;
-    to_remote_finish_desc_o.dma_type = 1'b1;  // write
-    to_remote_finish_desc_o.remote_addr = (remote_addr_q>=xdma_pkg::MainMemBaseAddr)? xdma_pkg::MainMemEndAddr-xdma_pkg::MMIOFinishOffset : xdma_pkg::get_cluster_end_addr(
-        remote_addr_q) - xdma_pkg::MMIOFinishOffset;
-    to_remote_finish_desc_o.dma_length = 1;
-    to_remote_finish_desc_o.ready_to_transfer = valid_to_send_finish;
-  end
+  assign to_remote_finish_valid_o = valid_to_send_finish;
+  assign from_remote_dma_id_o = from_remote_dma_id_q;
+  assign remote_addr_o = remote_addr_q;
+  // // to remote finish composition
+  // always_comb begin : proc_to_remote_finish
+  //   to_remote_finish_o = '0;
+  //   to_remote_finish_o.dma_id = from_remote_dma_id_q;
+  //   to_remote_finish_o.from = cluster_base_addr_i;
+  //   to_remote_finish_valid_o = valid_to_send_finish;
+  //   to_remote_finish_desc_o.dma_id = from_remote_dma_id_q;
+  //   to_remote_finish_desc_o.dma_type = 1'b1;  // write
+  //   to_remote_finish_desc_o.remote_addr = (remote_addr_q>=xdma_pkg::MainMemBaseAddr)? xdma_pkg::MainMemEndAddr-xdma_pkg::MMIOFinishOffset : xdma_pkg::get_cluster_end_addr(
+  //       remote_addr_q) - xdma_pkg::MMIOFinishOffset;
+  //   to_remote_finish_desc_o.dma_length = 1;
+  //   to_remote_finish_desc_o.ready_to_transfer = valid_to_send_finish;
+  // end
 
 
 
